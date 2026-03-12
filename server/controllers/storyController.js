@@ -63,3 +63,21 @@ export const getStories = async (req, res) =>{
        res.json({ success: false, message: error.message }); 
     }
 }
+
+// Delete Own Story
+export const deleteStory = async (req, res) => {
+    try {
+        const { userId } = req.auth();
+        const { id } = req.params;
+
+        const story = await Story.findById(id);
+        if (!story) return res.json({ success: false, message: 'Story not found.' });
+        if (story.user !== userId) return res.json({ success: false, message: 'Not authorised to delete this story.' });
+
+        await Story.findByIdAndDelete(id);
+        res.json({ success: true, message: 'Story deleted successfully.' });
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+}

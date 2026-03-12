@@ -6,9 +6,11 @@ import StoryViewer from './StoryViewer'
 import { useAuth } from '@clerk/clerk-react'
 import api from '../api/axios'
 import toast from 'react-hot-toast'
+import { useSelector } from 'react-redux'
 
 const StoriesBar = () => {
     const { getToken } = useAuth()
+    const currentUser = useSelector((state) => state.user.value)
     const [stories, setStories] = useState([])
     const [showModal, setShowModal] = useState(false)
     const [viewStory, setViewStory] = useState(null)
@@ -98,7 +100,12 @@ const StoriesBar = () => {
             )}
             {/* View Story Modal */}
             {viewStory && (
-                <StoryViewer viewStory={viewStory} setViewStory={setViewStory} />
+                <StoryViewer
+                    viewStory={viewStory}
+                    setViewStory={setViewStory}
+                    currentUserId={currentUser?._id}
+                    onStoryDeleted={(deletedId) => setStories((prev) => prev.filter((s) => s._id !== deletedId))}
+                />
             )}
         </div>
     )

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { BadgeCheck, Heart, MessageCircle, Share2 } from 'lucide-react'
+import { BadgeCheck, Heart, MessageCircle, Share2, Trash2 } from 'lucide-react'
 import moment from 'moment'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
@@ -7,14 +7,17 @@ import { useAuth } from '@clerk/clerk-react'
 import api from '../api/axios'
 import toast from 'react-hot-toast'
 
-const PostCard = ({ post }) => {
+const PostCard = ({ post, onDelete }) => {
     const postWithHashtags = post.content.replace(
         /(#\w+)/g,
         '<span class="text-google-blue font-medium">$1</span>'
     )
     const [likes, setLikes] = useState(post.likes_count)
+    const [deleting, setDeleting] = useState(false)
     const currentUser = useSelector((state) => state.user.value)
     const { getToken } = useAuth()
+
+    const isOwner = currentUser?._id === post.user._id
 
     const handleLike = async () => {
         try {
@@ -41,32 +44,67 @@ const PostCard = ({ post }) => {
         }
     }
 
+    const handleDelete = async () => {
+        if (!window.confirm('Delete this post? This cannot be undone.')) return
+        setDeleting(true)
+        try {
+            const { data } = await api.delete(
+                `/api/post/${post._id}`,
+                { headers: { Authorization: `Bearer ${await getToken()}` } }
+            )
+            if (data.success) {
+                toast.success('Post deleted.')
+                onDelete && onDelete(post._id)
+            } else {
+                toast.error(data.message)
+            }
+        } catch (error) {
+            toast.error(error.message)
+        } finally {
+            setDeleting(false)
+        }
+    }
+
     const navigate = useNavigate()
 
     return (
         <div className='bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.03)] border border-border-light p-5 space-y-4 w-full max-w-2xl hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-shadow duration-200'>
             {/* User Info */}
-            <div
-                onClick={() => navigate('/profile/' + post.user._id)}
-                className='inline-flex items-center gap-3 cursor-pointer group'
-            >
-                <img
-                    src={post.user.profile_picture}
-                    alt=''
-                    className='w-10 h-10 rounded-full ring-2 ring-border-light'
-                />
-                <div>
-                    <div className='flex items-center gap-1'>
-                        <span className='font-medium text-text-primary group-hover:text-google-blue transition-colors duration-200'>
-                            {post.user.full_name}
-                        </span>
-                        <BadgeCheck className='w-4 h-4 text-google-blue' />
-                    </div>
-                    <div className='text-text-tertiary text-sm'>
-                        @{post.user.username} •{' '}
-                        {moment(post.createdAt).fromNow()}
+            <div className='flex items-center justify-between'>
+                <div
+                    onClick={() => navigate('/profile/' + post.user._id)}
+                    className='inline-flex items-center gap-3 cursor-pointer group'
+                >
+                    <img
+                        src={post.user.profile_picture}
+                        alt=''
+                        className='w-10 h-10 rounded-full ring-2 ring-border-light'
+                    />
+                    <div>
+                        <div className='flex items-center gap-1'>
+                            <span className='font-medium text-text-primary group-hover:text-google-blue transition-colors duration-200'>
+                                {post.user.full_name}
+                            </span>
+                            <BadgeCheck className='w-4 h-4 text-google-blue' />
+                        </div>
+                        <div className='text-text-tertiary text-sm'>
+                            @{post.user.username} •{' '}
+                            {moment(post.createdAt).fromNow()}
+                        </div>
                     </div>
                 </div>
+
+                {/* Delete button — only for own posts */}
+                {isOwner && onDelete && (
+                    <button
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        title='Delete post'
+                        className='p-2 rounded-full text-text-tertiary hover:text-red-500 hover:bg-red-50 transition-colors duration-200 cursor-pointer disabled:opacity-50'
+                    >
+                        <Trash2 className='w-4 h-4' />
+                    </button>
+                )}
             </div>
 
             {/* Content */}
@@ -118,4 +156,4 @@ const PostCard = ({ post }) => {
     )
 }
 
-export default PostCard
+export default PostCard

@@ -126,7 +126,11 @@ const Profile = () => {
           {activeTab === 'posts' && (
             <div className='mt-6 flex flex-col items-center gap-5'>
               {posts.map((post) => (
-                <PostCard key={post._id} post={post} />
+                <PostCard
+                  key={post._id}
+                  post={post}
+                  onDelete={(deletedId) => setPosts((prev) => prev.filter((p) => p._id !== deletedId))}
+                />
               ))}
             </div>
           )}

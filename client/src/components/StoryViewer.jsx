@@ -1,8 +1,13 @@
-import { BadgeCheck, X } from 'lucide-react'
+import { BadgeCheck, Trash2, X } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
+import { useAuth } from '@clerk/clerk-react'
+import api from '../api/axios'
+import toast from 'react-hot-toast'
 
-const StoryViewer = ({ viewStory, setViewStory }) => {
+const StoryViewer = ({ viewStory, setViewStory, currentUserId, onStoryDeleted }) => {
     const [progress, setProgress] = useState(0)
+    const [deleting, setDeleting] = useState(false)
+    const { getToken } = useAuth()
 
     useEffect(() => {
         let timer, progressInterval
@@ -34,7 +39,31 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
         setViewStory(null)
     }
 
+    const handleDelete = async () => {
+        if (!window.confirm('Delete this story? This cannot be undone.')) return
+        setDeleting(true)
+        try {
+            const token = await getToken()
+            const { data } = await api.delete(`/api/story/${viewStory._id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            if (data.success) {
+                toast.success('Story deleted.')
+                setViewStory(null)
+                onStoryDeleted && onStoryDeleted(viewStory._id)
+            } else {
+                toast.error(data.message)
+            }
+        } catch (error) {
+            toast.error(error.message)
+        } finally {
+            setDeleting(false)
+        }
+    }
+
     if (!viewStory) return null
+
+    const isOwner = currentUserId && viewStory.user?._id === currentUserId
 
     const renderContent = () => {
         switch (viewStory.media_type) {
@@ -98,13 +127,26 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
                 </div>
             </div>
 
-            {/* Close Button */}
-            <button
-                onClick={handleClose}
-                className='absolute top-5 right-5 text-white/80 hover:text-white p-2 rounded-full hover:bg-white/10 transition-all duration-200 cursor-pointer'
-            >
-                <X className='w-6 h-6' />
-            </button>
+            {/* Top-right buttons */}
+            <div className='absolute top-5 right-5 flex items-center gap-2'>
+                {/* Delete — only for own story */}
+                {isOwner && (
+                    <button
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        title='Delete story'
+                        className='text-white/80 hover:text-red-400 p-2 rounded-full hover:bg-white/10 transition-all duration-200 cursor-pointer disabled:opacity-50'
+                    >
+                        <Trash2 className='w-5 h-5' />
+                    </button>
+                )}
+                <button
+                    onClick={handleClose}
+                    className='text-white/80 hover:text-white p-2 rounded-full hover:bg-white/10 transition-all duration-200 cursor-pointer'
+                >
+                    <X className='w-6 h-6' />
+                </button>
+            </div>
 
             {/* Content Wrapper */}
             <div className='max-w-[90vw] max-h-[90vh] flex items-center justify-center'>
@@ -114,4 +156,4 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
     )
 }
 
-export default StoryViewer
+export default StoryViewer
