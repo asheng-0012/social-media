@@ -1,5 +1,5 @@
 import React from 'react'
-import { NavLink, Outlet, Navigate } from 'react-router-dom'
+import { NavLink, Outlet, Navigate, useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import {
   LayoutDashboard,
@@ -7,10 +7,12 @@ import {
   FileText,
   ShieldCheck,
   Flag,
+  Home,
 } from 'lucide-react'
 
 const AdminLayout = () => {
   const { user, isLoaded } = useUser()
+  const navigate = useNavigate()
 
   if (!isLoaded) return null
 
@@ -86,8 +88,24 @@ const AdminLayout = () => {
         </nav>
 
         {/* Footer */}
-        <div style={{ padding: '16px 20px', borderTop: '1px solid #1e2535', fontSize: '11px', color: '#475569' }}>
-          Logged in as admin
+        <div style={{ padding: '16px 20px', borderTop: '1px solid #1e2535', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <span style={{ fontSize: '11px', color: '#475569' }}>Logged in as admin</span>
+          <button
+            onClick={() => navigate('/')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '8px 12px', borderRadius: '8px',
+              background: 'rgba(99,102,241,0.1)',
+              border: '1px solid rgba(99,102,241,0.25)',
+              color: '#a5b4fc', fontSize: '13px', fontWeight: 600,
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.2)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(99,102,241,0.1)'}
+          >
+            <Home size={15} />
+            Switch to User
+          </button>
         </div>
       </aside>
 
