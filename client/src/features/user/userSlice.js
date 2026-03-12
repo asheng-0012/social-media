@@ -4,7 +4,8 @@ import toast from 'react-hot-toast'
 
 
 const initialState = {
-    value: null
+    value: null,
+    loading: true
 }
 
 export const fetchUser = createAsyncThunk('user/fetchUser', async (token) => {
@@ -35,9 +36,17 @@ const userSlice = createSlice({
 
     },
     extraReducers: (builder)=>{
+        builder.addCase(fetchUser.pending, (state)=>{
+            state.loading = true
+        })
         builder.addCase(fetchUser.fulfilled, (state, action)=>{
             state.value = action.payload
-        }).addCase(updateUser.fulfilled, (state, action)=>{
+            state.loading = false
+        })
+        builder.addCase(fetchUser.rejected, (state)=>{
+            state.loading = false
+        })
+        builder.addCase(updateUser.fulfilled, (state, action)=>{
             state.value = action.payload
         })
     }

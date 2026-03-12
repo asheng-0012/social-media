@@ -137,12 +137,8 @@ export const followUser = async (req, res) => {
             return res.json({ success: false, message: 'You are already following this user'})
         }
 
-        user.following.push(id);
-        await user.save()
-
-        const toUser = await User.findById(id)
-        toUser.followers.push(userId)
-        await toUser.save()
+        await User.findByIdAndUpdate(userId, { $addToSet: { following: id } });
+        await User.findByIdAndUpdate(id, { $addToSet: { followers: userId } });
 
         res.json({success: true, message: 'Now you are following this user'})
         
@@ -225,11 +221,23 @@ export const getUserConnections = async (req, res) => {
         const {userId} = req.auth()
         const user = await User.findById(userId).populate('connections followers following')
 
-        const connections = user.connections
-        const followers = user.followers
-        const following = user.following
+        const deduplicate = (arr) => {
+            const seen = new Set();
+            return arr.filter(u => {
+                if (u === null) return false;
+                const id = u._id.toString();
+                if (seen.has(id)) return false;
+                seen.add(id);
+                return true;
+            });
+        };
 
-        const pendingConnections = (await Connection.find({to_user_id: userId, status: 'pending'}).populate('from_user_id')).map(connection=>connection.from_user_id)
+        const connections = deduplicate(user.connections);
+        const followers = deduplicate(user.followers);
+        const following = deduplicate(user.following);
+
+        let pendingConnections = (await Connection.find({to_user_id: userId, status: 'pending'}).populate('from_user_id')).map(connection=>connection.from_user_id)
+        pendingConnections = deduplicate(pendingConnections);
 
         res.json({success: true, connections, followers, following, pendingConnections})
 
@@ -251,13 +259,8 @@ export const acceptConnectionRequest = async (req, res) => {
             return res.json({ success: false, message: 'Connection not found' });
         }
 
-        const user = await User.findById(userId);
-        user.connections.push(id);
-        await user.save()
-
-        const toUser = await User.findById(id);
-        toUser.connections.push(userId);
-        await toUser.save()
+        await User.findByIdAndUpdate(userId, { $addToSet: { connections: id } });
+        await User.findByIdAndUpdate(id, { $addToSet: { connections: userId } });
 
         connection.status = 'accepted';
         await connection.save()

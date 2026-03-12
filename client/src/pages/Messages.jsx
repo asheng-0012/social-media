@@ -1,52 +1,74 @@
 import React from 'react'
-import { dummyConnectionsData } from '../assets/assets'
 import { Eye, MessageSquare } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 
 const Messages = () => {
+    const { connections } = useSelector((state) => state.connections)
+    const navigate = useNavigate()
 
-  const { connections } = useSelector((state)=>state.connections)
-  const navigate = useNavigate()
+    return (
+        <div className='min-h-screen relative bg-surface-hover'>
+            <div className='max-w-3xl mx-auto p-6 py-8'>
+                {/* Title */}
+                <div className='mb-8'>
+                    <h1 className='text-2xl font-semibold text-text-primary mb-1'>
+                        Messages
+                    </h1>
+                    <p className='text-text-tertiary text-sm'>
+                        Talk to your friends and family
+                    </p>
+                </div>
 
-  return (
-    <div className='min-h-screen relative bg-slate-50'>
-      <div className='max-w-6xl mx-auto p-6'>
-        {/* Title */}
-        <div className='mb-8'>
-          <h1 className='text-3xl font-bold text-slate-900 mb-2'>Messages</h1>
-          <p className='text-slate-600'>Talk to your friends and family</p>
-        </div>
+                {/* Connected Users */}
+                <div className='flex flex-col gap-2.5'>
+                    {connections.map((user) => (
+                        <div
+                            key={user._id}
+                            className='flex items-center gap-4 p-4 bg-white rounded-2xl border border-border-light hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-all duration-200 group'
+                        >
+                            <img
+                                src={user.profile_picture}
+                                alt=''
+                                className='rounded-full size-12 ring-2 ring-border-light'
+                            />
+                            <div className='flex-1 min-w-0'>
+                                <p className='font-medium text-text-primary'>
+                                    {user.full_name}
+                                </p>
+                                <p className='text-text-tertiary text-sm'>
+                                    @{user.username}
+                                </p>
+                                <p className='text-sm text-text-secondary mt-0.5 truncate'>
+                                    {user.bio}
+                                </p>
+                            </div>
 
-        {/* Connected Users */}
-        <div className='flex flex-col gap-3'>
-          {connections.map((user)=>(
-            <div key={user._id} className='max-w-xl flex flex-warp gap-5 p-6 bg-white shadow rounded-md'>
-              <img src={user.profile_picture} alt="" className='rounded-full size-12 mx-auto'/>
-              <div className='flex-1'>
-                <p className='font-medium text-slate-700'>{user.full_name}</p>
-                <p className='text-slate-500'>@{user.username}</p>
-                <p className='text-sm text-gray-600'>{user.bio}</p>
-              </div>
+                            <div className='flex gap-2'>
+                                <button
+                                    onClick={() =>
+                                        navigate(`/messages/${user._id}`)
+                                    }
+                                    className='size-10 flex items-center justify-center rounded-full bg-google-blue/10 hover:bg-google-blue/20 text-google-blue active:scale-95 transition-all duration-200 cursor-pointer'
+                                >
+                                    <MessageSquare className='w-4 h-4' />
+                                </button>
 
-              <div className='flex flex-col gap-2 mt-4'>
-
-                <button onClick={()=> navigate(`/messages/${user._id}`)} className='size-10 flex items-center justify-center text-sm rounded bg-slate-100 hover:bg-slate-200 text-slate-800 active:scale-95 transition cursor-pointer gap-1'>
-                  <MessageSquare className="w-4 h-4"/>
-                </button>
-
-                <button onClick={()=> navigate(`/profile/${user._id}`)} className='size-10 flex items-center justify-center text-sm rounded bg-slate-100 hover:bg-slate-200 text-slate-800 active:scale-95 transition cursor-pointer'>
-                  <Eye className="w-4 h-4"/>
-                </button>
-
-              </div>
-
+                                <button
+                                    onClick={() =>
+                                        navigate(`/profile/${user._id}`)
+                                    }
+                                    className='size-10 flex items-center justify-center rounded-full bg-surface-hover hover:bg-border text-text-secondary active:scale-95 transition-all duration-200 cursor-pointer'
+                                >
+                                    <Eye className='w-4 h-4' />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
-          ))}
         </div>
-      </div>
-    </div>
-  )
+    )
 }
 
 export default Messages

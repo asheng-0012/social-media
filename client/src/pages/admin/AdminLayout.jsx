@@ -48,7 +48,7 @@ const AdminLayout = () => {
               <ShieldCheck size={18} color='white' />
             </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '14px', color: '#fff' }}>PingUp Admin</div>
+              <div style={{ fontWeight: 700, fontSize: '14px', color: '#fff' }}>Comigo Admin</div>
               <div style={{ fontSize: '11px', color: '#64748b' }}>Control Panel</div>
             </div>
           </div>
