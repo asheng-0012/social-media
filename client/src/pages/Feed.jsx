@@ -53,7 +53,7 @@ const Feed = () => {
           <h3 className='text-slate-800 font-semibold'>Sponsored</h3>
           <img src={assets.sponsored_img} className='w-75 h-50 rounded-md' alt="" />
           <p className='text-slate-600'>Email marketing</p>
-          <p className='text-slate-400'>Supercharge your marketing with a powerful, easy-to-use platform built for results.</p>
+          <p className='text-slate-400'>this is a trial ad,and reserved this space for ads and promotions rn</p>
         </div>
         <RecentMessages />
       </div>
