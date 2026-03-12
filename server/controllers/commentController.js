@@ -1,11 +1,25 @@
 import Comment from '../models/Comment.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// ── Simple built-in profanity filter (no package needed) ──────────────────
+// ── Simple built-in profanity + threat filter (no package needed) ─────────
 const PROFANITY_LIST = [
     'fuck', 'shit', 'bitch', 'asshole', 'bastard', 'cunt', 'dick',
     'piss', 'cock', 'pussy', 'faggot', 'nigger', 'nigga', 'whore',
     'slut', 'retard', 'motherfucker', 'fucker', 'damn', 'crap',
+];
+
+// Common violent / harmful phrases that AI models often treat as casual speech
+const THREAT_PATTERNS = [
+    /\bkill\s+you\b/i,
+    /\bkill\s+your(self|selves)?\b/i,
+    /\bi('ll|[ ]+will|[ ]+am going to|[ ]+gonna)\s+(kill|murder|hurt|stab|shoot|destroy|beat)\b/i,
+    /\byou\s+should\s+(die|kill yourself|hurt yourself)\b/i,
+    /\bgo\s+die\b/i,
+    /\bkys\b/i,
+    /\bslit\s+your\b/i,
+    /\bhang\s+your(self)?\b/i,
+    /\bkill\s+(myself|himself|herself|themselves)\b/i,
+    /\bwant\s+to\s+(kill|murder|hurt|harm)\b/i,
 ];
 
 const normaliseLeet = (text) =>
@@ -15,6 +29,9 @@ const normaliseLeet = (text) =>
         .replace(/\+/g, 't').replace(/[^a-z\s]/g, '');
 
 const isLocallyFlagged = (text) => {
+    // Check threat patterns on original text (keep punctuation for regex accuracy)
+    if (THREAT_PATTERNS.some(re => re.test(text))) return true;
+    // Check profanity on normalised text
     const cleaned = normaliseLeet(text);
     return PROFANITY_LIST.some(word => new RegExp(`\\b${word}\\b`, 'i').test(cleaned));
 };
