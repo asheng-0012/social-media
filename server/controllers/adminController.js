@@ -1,6 +1,8 @@
 import User from '../models/User.js';
 import Post from '../models/Post.js';
 import Story from '../models/Story.js';
+import Report from '../models/Report.js';
+
 
 // GET /api/admin/stats
 export const getAdminStats = async (req, res) => {
@@ -131,3 +133,40 @@ export const deleteStory = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 };
+
+// GET /api/admin/reports
+export const getReports = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
+
+        const [reports, total] = await Promise.all([
+            Report.find()
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .populate('reporter', 'full_name username profile_picture')
+                .populate('reportedUser', 'full_name username profile_picture email'),
+            Report.countDocuments(),
+        ]);
+
+        res.json({ success: true, reports, total, page, pages: Math.ceil(total / limit) });
+    } catch (error) {
+        console.error(error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// DELETE /api/admin/reports/:id (and optionally delete the reported user)
+export const dismissReport = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await Report.findByIdAndDelete(id);
+        res.json({ success: true, message: 'Report dismissed.' });
+    } catch (error) {
+        console.error(error);
+        res.json({ success: false, message: error.message });
+    }
+};
+

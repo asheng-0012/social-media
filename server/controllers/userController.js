@@ -3,6 +3,7 @@ import { inngest } from "../inngest/index.js"
 import Connection from "../models/Connection.js"
 import Post from "../models/Post.js"
 import User from "../models/User.js"
+import Report from "../models/Report.js"
 import fs from 'fs'
 import { clerkClient } from "@clerk/express";
 
@@ -290,3 +291,30 @@ export const getUserProfiles = async (req, res) =>{
         res.json({success: false, message: error.message})
     }
 }
+
+// Report a User
+export const reportUser = async (req, res) => {
+    try {
+        const { userId } = req.auth()
+        const { reportedUserId, reason } = req.body;
+
+        if (!reportedUserId || !reason) {
+            return res.json({ success: false, message: 'Reported user and reason are required.' });
+        }
+
+        if (userId === reportedUserId) {
+            return res.json({ success: false, message: 'You cannot report yourself.' });
+        }
+
+        const report = await Report.create({
+            reporter: userId,
+            reportedUser: reportedUserId,
+            reason,
+        });
+
+        res.json({ success: true, message: 'User reported successfully. Our team will review the report.', report });
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+}

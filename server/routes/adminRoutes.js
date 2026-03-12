@@ -9,6 +9,8 @@ import {
     deletePost,
     getAllStories,
     deleteStory,
+    getReports,
+    dismissReport,
 } from '../controllers/adminController.js';
 
 const adminRouter = express.Router();
@@ -26,4 +28,8 @@ adminRouter.delete('/posts/:id', deletePost);
 adminRouter.get('/stories', getAllStories);
 adminRouter.delete('/stories/:id', deleteStory);
 
+adminRouter.get('/reports', getReports);
+adminRouter.delete('/reports/:id', dismissReport);
+
 export default adminRouter;
+
