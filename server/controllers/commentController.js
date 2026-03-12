@@ -1,13 +1,28 @@
 import Comment from '../models/Comment.js';
 import OpenAI from 'openai';
+import { Filter } from 'bad-words';
 
-// OpenAI client (only if key is set)
-const openai = process.env.OPENAI_API_KEY
-    ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+// Local profanity filter (always active, no API key needed)
+const localFilter = new Filter();
+
+// OpenAI client (only if key is set and not the placeholder)
+const openaiKey = process.env.OPENAI_API_KEY;
+const openai = openaiKey && !openaiKey.startsWith('your-openai')
+    ? new OpenAI({ apiKey: openaiKey })
     : null;
 
-// Moderate content using OpenAI's free moderation API
+// Moderate content: local filter first, then OpenAI (if key set)
 const moderateContent = async (text) => {
+    // 1. Local bad-words filter (free, instant, no API needed)
+    try {
+        if (localFilter.isProfane(text)) {
+            return { flagged: true, categories: 'profanity / offensive language' };
+        }
+    } catch (err) {
+        // ignore filter errors
+    }
+
+    // 2. OpenAI Moderation API (deeper detection: hate, harassment, etc.)
     if (!openai) return { flagged: false };
     try {
         const response = await openai.moderations.create({
@@ -25,7 +40,7 @@ const moderateContent = async (text) => {
         return { flagged: false };
     } catch (err) {
         console.error('OpenAI moderation error:', err.message);
-        return { flagged: false }; // fail open — don't block comments if API is down
+        return { flagged: false };
     }
 };
 
