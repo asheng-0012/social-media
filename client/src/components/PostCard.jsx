@@ -19,7 +19,7 @@ const PostCard = ({ post, onDelete }) => {
     const [commentsLoaded, setCommentsLoaded] = useState(false)
     const [commentInput, setCommentInput] = useState('')
     const [submitting, setSubmitting] = useState(false)
-    const [warning, setWarning] = useState(null)
+    const [warning, setWarning] = useState(null)      // { message, detectedBy }
     const [deletingComment, setDeletingComment] = useState(null)
 
     const currentUser = useSelector((state) => state.user.value)
@@ -88,7 +88,7 @@ const PostCard = ({ post, onDelete }) => {
                 setComments(prev => [...prev, data.comment])
                 setCommentInput('')
             } else if (data.flagged) {
-                setWarning(data.message)
+                setWarning({ message: data.message, detectedBy: data.detectedBy })
             } else {
                 toast.error(data.message)
             }
@@ -232,11 +232,24 @@ const PostCard = ({ post, onDelete }) => {
 
                     {/* AI Warning Banner */}
                     {warning && (
-                        <div className='flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600'>
-                            <span className='flex-1 leading-relaxed'>{warning}</span>
-                            <button onClick={() => setWarning(null)} className='text-red-400 hover:text-red-600 transition-colors mt-0.5 cursor-pointer flex-shrink-0'>
-                                <X className='w-4 h-4' />
-                            </button>
+                        <div className='flex flex-col gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600'>
+                            <div className='flex items-start gap-2'>
+                                <span className='flex-1 leading-relaxed'>⚠️ {warning.message} Please keep the community respectful.</span>
+                                <button onClick={() => setWarning(null)} className='text-red-400 hover:text-red-600 transition-colors mt-0.5 cursor-pointer flex-shrink-0'>
+                                    <X className='w-4 h-4' />
+                                </button>
+                            </div>
+                            <div className='flex items-center gap-1.5'>
+                                {warning.detectedBy === 'gemini' ? (
+                                    <span className='inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded-full'>
+                                        🤖 Detected by Gemini AI
+                                    </span>
+                                ) : (
+                                    <span className='inline-flex items-center gap-1 bg-gray-100 text-gray-600 text-[10px] font-semibold px-2 py-0.5 rounded-full'>
+                                        🛡️ Content Filter
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     )}
 

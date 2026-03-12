@@ -53,55 +53,52 @@ const getGemini = () => {
 
 // ── Main moderation function ───────────────────────────────────────────────
 const moderateContent = async (text) => {
-    // 1. Local word list (instant, zero API calls)
-    if (isLocallyFlagged(text)) {
-        console.log('[Moderation] Local filter flagged comment');
-        return { flagged: true, categories: 'profanity / offensive language' };
-    }
-
-    // 2. Gemini AI (hate speech, harassment, threats, etc.)
+    // 1. Try Gemini AI first (primary detector)
     const model = getGemini();
-    if (!model) return { flagged: false };
+    if (model) {
+        try {
+            console.log('[Moderation] Calling Gemini API...');
+            const prompt = `You are a content safety filter for a social media app. Answer with ONLY "YES" or "NO".
 
-    try {
-        console.log('[Moderation] Calling Gemini API...');
-        const prompt = `You are a strict content safety moderator for a social media platform. Your job is to flag harmful comments.
+Does this comment contain ANY of the following?
+- A threat of violence or death (e.g. "I want to kill you", "I'll hurt you", "I'll murder you")
+- Encouragement of self-harm or suicide (e.g. "kill yourself", "go die", "kys")
+- Hate speech based on race, religion, gender, or sexuality
+- Sexual harassment
+- Severe bullying or personal attacks
 
-Flag the comment as harmful (flagged: true) if it contains ANY of the following:
-- Direct threats of violence: e.g. "I want to kill you", "I will hurt you", "I'll murder you"
-- Encouragement of self-harm or suicide: e.g. "kill yourself", "you should die"
-- Hate speech targeting race, religion, gender, sexuality, disability
-- Sexual harassment or explicit sexual content directed at someone
-- Severe bullying or personal attacks meant to cause emotional harm
+Comment: "${text}"
 
-Respond with ONLY valid JSON, no explanation, no markdown:
-{"flagged": true, "reason": "brief reason"}
-or
-{"flagged": false, "reason": ""}
+Answer (YES or NO only):`;
 
-Comment to analyse: "${text}"`;
+            const result = await model.generateContent(prompt);
+            const raw = result.response.text().trim().toUpperCase();
+            console.log('[Moderation] Gemini answer:', raw);
 
-        const result = await model.generateContent(prompt);
-        const raw = result.response.text().trim();
-        console.log('[Moderation] Gemini raw response:', raw);
-
-        const jsonMatch = raw.match(/\{[\s\S]*?\}/);
-        if (!jsonMatch) {
-            console.error('[Moderation] Could not parse Gemini response');
-            return { flagged: false };
+            if (raw.startsWith('YES')) {
+                return { flagged: true, categories: 'harmful content', detectedBy: 'gemini' };
+            }
+            console.log('[Moderation] Gemini approved comment');
+            return { flagged: false, detectedBy: 'gemini' };
+        } catch (err) {
+            console.error('[Moderation] Gemini error, falling back to local filter:', err.message);
         }
-
-        const parsed = JSON.parse(jsonMatch[0]);
-        console.log('[Moderation] Gemini flagged:', parsed.flagged, '| reason:', parsed.reason);
-        if (parsed.flagged) {
-            return { flagged: true, categories: parsed.reason || 'harmful content' };
-        }
-        return { flagged: false };
-    } catch (err) {
-        console.error('[Moderation] Gemini error:', err.message);
-        return { flagged: false };
     }
+
+    // 2. Fallback: local threat patterns + profanity
+    if (THREAT_PATTERNS.some(re => re.test(text))) {
+        return { flagged: true, categories: 'threatening / harmful language', detectedBy: 'local' };
+    }
+    const cleaned = normaliseLeet(text);
+    if (PROFANITY_LIST.some(word => new RegExp(`\\b${word}\\b`, 'i').test(cleaned))) {
+        return { flagged: true, categories: 'profanity / offensive language', detectedBy: 'local' };
+    }
+    return { flagged: false, detectedBy: 'local' };
 };
+
+
+
+
 
 // GET /api/post/moderation-test  ← DEBUG endpoint (remove in production)
 export const testModeration = async (req, res) => {
@@ -128,7 +125,8 @@ export const addComment = async (req, res) => {
             return res.json({
                 success: false,
                 flagged: true,
-                message: `⚠️ Your comment was blocked. It was flagged for: ${moderation.categories}. Please keep the community respectful.`,
+                detectedBy: moderation.detectedBy,
+                message: `Your comment was blocked. It was flagged for: ${moderation.categories}.`,
             });
         }
 
