@@ -21,6 +21,7 @@ import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminUsers from './pages/admin/AdminUsers'
 import AdminContent from './pages/admin/AdminContent'
+import AdminReports from './pages/admin/AdminReports'
 
 const App = () => {
   const {user} = useUser()
@@ -85,6 +86,7 @@ const App = () => {
           <Route index element={<AdminDashboard />} />
           <Route path='users' element={<AdminUsers />} />
           <Route path='content' element={<AdminContent />} />
+          <Route path='reports' element={<AdminReports />} />
         </Route>
       </Routes>
     </>

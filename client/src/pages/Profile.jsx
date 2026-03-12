@@ -20,6 +20,11 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState('posts')
   const [showEdit, setShowEdit] = useState(false)
 
+  // Report modal state
+  const [showReport, setShowReport] = useState(false)
+  const [reportReason, setReportReason] = useState('')
+  const [reporting, setReporting] = useState(false)
+
   const fetchUser = async (profileId) => {
     const token = await getToken()
     try {
@@ -36,6 +41,33 @@ const Profile = () => {
       }
     } catch (error) {
       toast.error(error.message)
+    }
+  }
+
+  const handleReport = async () => {
+    if (!reportReason.trim()) {
+      toast.error('Please provide a reason for reporting.')
+      return
+    }
+    setReporting(true)
+    try {
+      const token = await getToken()
+      const { data } = await api.post(
+        `/api/user/report`,
+        { reportedUserId: user._id, reason: reportReason.trim() },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (data.success) {
+        toast.success(data.message)
+        setShowReport(false)
+        setReportReason('')
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      toast.error(error.message)
+    } finally {
+      setReporting(false)
     }
   }
 
@@ -68,6 +100,7 @@ const Profile = () => {
             posts={posts}
             profileId={profileId}
             setShowEdit={setShowEdit}
+            setShowReport={setShowReport}
           />
         </div>
 
@@ -131,10 +164,44 @@ const Profile = () => {
 
       {/* Edit Profile Modal */}
       {showEdit && <ProfileModal setShowEdit={setShowEdit} />}
+
+      {/* Report Modal */}
+      {showReport && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4'>
+          <div className='bg-white rounded-2xl shadow-xl w-full max-w-md p-6 border border-border-light'>
+            <h2 className='text-lg font-bold text-text-primary mb-1'>Report User</h2>
+            <p className='text-sm text-text-secondary mb-4'>
+              Tell us why you're reporting <span className='font-semibold text-text-primary'>{user.full_name}</span>. Our team will review it.
+            </p>
+            <textarea
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              placeholder='Describe the reason for reporting (e.g. harassment, spam, fake account)…'
+              rows={4}
+              className='w-full border border-border rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-google-blue/30 resize-none'
+            />
+            <div className='flex justify-end gap-3 mt-4'>
+              <button
+                onClick={() => { setShowReport(false); setReportReason('') }}
+                className='px-5 py-2 text-sm font-medium rounded-full border border-border text-text-secondary hover:bg-surface-hover transition-colors duration-200 cursor-pointer'
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReport}
+                disabled={reporting}
+                className='px-5 py-2 text-sm font-semibold rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors duration-200 cursor-pointer disabled:opacity-60'
+              >
+                {reporting ? 'Submitting…' : 'Submit Report'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   ) : (
     <Loading />
   )
 }
 
-export default Profile
+export default Profile

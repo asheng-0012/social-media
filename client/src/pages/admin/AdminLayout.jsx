@@ -6,6 +6,7 @@ import {
   Users,
   FileText,
   ShieldCheck,
+  Flag,
 } from 'lucide-react'
 
 const AdminLayout = () => {
@@ -22,7 +23,9 @@ const AdminLayout = () => {
     { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
     { to: '/admin/users', label: 'Users', icon: Users },
     { to: '/admin/content', label: 'Posts & Stories', icon: FileText },
+    { to: '/admin/reports', label: 'Reports', icon: Flag },
   ]
+
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#0f1117', color: '#e2e8f0', fontFamily: 'Inter, sans-serif' }}>

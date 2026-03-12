@@ -1,8 +1,8 @@
-import { Calendar, MapPin, PenBox, Verified } from 'lucide-react'
+import { Calendar, Flag, MapPin, PenBox, Verified } from 'lucide-react'
 import moment from 'moment'
 import React from 'react'
 
-const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => {
+const UserProfileInfo = ({ user, posts, profileId, setShowEdit, setShowReport }) => {
     return (
         <div className='relative py-5 px-6 md:px-8 bg-white'>
             <div className='flex flex-col md:flex-row items-start gap-6'>
@@ -30,15 +30,26 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => {
                             </p>
                         </div>
 
-                        {!profileId && (
-                            <button
-                                onClick={() => setShowEdit(true)}
-                                className='flex items-center gap-2 border border-border px-5 py-2 rounded-full font-medium text-sm text-text-primary hover:bg-surface-hover transition-colors duration-200 mt-4 md:mt-0 cursor-pointer'
-                            >
-                                <PenBox className='w-4 h-4' />
-                                Edit
-                            </button>
-                        )}
+                        <div className='flex items-center gap-2 mt-4 md:mt-0'>
+                            {!profileId && (
+                                <button
+                                    onClick={() => setShowEdit(true)}
+                                    className='flex items-center gap-2 border border-border px-5 py-2 rounded-full font-medium text-sm text-text-primary hover:bg-surface-hover transition-colors duration-200 cursor-pointer'
+                                >
+                                    <PenBox className='w-4 h-4' />
+                                    Edit
+                                </button>
+                            )}
+                            {profileId && (
+                                <button
+                                    onClick={() => setShowReport(true)}
+                                    className='flex items-center gap-2 border border-red-200 px-5 py-2 rounded-full font-medium text-sm text-red-500 hover:bg-red-50 transition-colors duration-200 cursor-pointer'
+                                >
+                                    <Flag className='w-4 h-4' />
+                                    Report
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     <p className='text-text-secondary text-sm max-w-md mt-4 leading-relaxed'>
@@ -93,4 +104,4 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => {
     )
 }
 
-export default UserProfileInfo
+export default UserProfileInfo
