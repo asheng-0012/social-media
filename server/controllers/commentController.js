@@ -1,5 +1,4 @@
 import Comment from '../models/Comment.js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // ── Simple built-in profanity + threat filter (no package needed) ─────────
 const PROFANITY_LIST = [
@@ -8,7 +7,6 @@ const PROFANITY_LIST = [
     'slut', 'retard', 'motherfucker', 'fucker', 'damn', 'crap',
 ];
 
-// Common violent / harmful phrases that AI models often treat as casual speech
 const THREAT_PATTERNS = [
     /\bkill\s+you\b/i,
     /\bkill\s+your(self|selves)?\b/i,
@@ -29,36 +27,17 @@ const normaliseLeet = (text) =>
         .replace(/\+/g, 't').replace(/[^a-z\s]/g, '');
 
 const isLocallyFlagged = (text) => {
-    // Check threat patterns on original text (keep punctuation for regex accuracy)
     if (THREAT_PATTERNS.some(re => re.test(text))) return true;
-    // Check profanity on normalised text
     const cleaned = normaliseLeet(text);
     return PROFANITY_LIST.some(word => new RegExp(`\\b${word}\\b`, 'i').test(cleaned));
 };
 
-// ── Gemini AI Moderation (lazy-init) ─────────────────────────────────────
-let _gemini = null;
-const getGemini = () => {
-    if (_gemini) return _gemini;
+// ── Gemini via direct REST fetch (no npm package — works everywhere) ───────
+const callGemini = async (text) => {
     const key = process.env.GEMINI_API_KEY;
-    if (key && !key.startsWith('your-gemini')) {
-        const genAI = new GoogleGenerativeAI(key);
-        _gemini = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-        console.log('[Moderation] ✅ Gemini client initialised');
-    } else {
-        console.log('[Moderation] ⚠️  No valid GEMINI_API_KEY found');
-    }
-    return _gemini;
-};
+    if (!key || key.startsWith('your-gemini')) return null;
 
-// ── Main moderation function ───────────────────────────────────────────────
-const moderateContent = async (text) => {
-    // 1. Try Gemini AI first (primary detector)
-    const model = getGemini();
-    if (model) {
-        try {
-            console.log('[Moderation] Calling Gemini API...');
-            const prompt = `You are a content safety filter for a social media app. Answer with ONLY "YES" or "NO".
+    const prompt = `You are a content safety filter for a social media app. Answer with ONLY "YES" or "NO".
 
 Does this comment contain ANY of the following?
 - A threat of violence or death (e.g. "I want to kill you", "I'll hurt you", "I'll murder you")
@@ -71,18 +50,45 @@ Comment: "${text}"
 
 Answer (YES or NO only):`;
 
-            const result = await model.generateContent(prompt);
-            const raw = result.response.text().trim().toUpperCase();
-            console.log('[Moderation] Gemini answer:', raw);
+    const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            }),
+        }
+    );
 
-            if (raw.startsWith('YES')) {
+    if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Gemini HTTP ${res.status}: ${err}`);
+    }
+
+    const json = await res.json();
+    const answer = json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toUpperCase() || '';
+    console.log('[Moderation] Gemini REST answer:', answer);
+    return answer;
+};
+
+
+
+// ── Main moderation function ───────────────────────────────────────────────
+const moderateContent = async (text) => {
+    // 1. Try Gemini AI first via REST (primary detector)
+    try {
+        const answer = await callGemini(text);
+        if (answer !== null) {
+            if (answer.startsWith('YES')) {
+                console.log('[Moderation] Gemini flagged comment');
                 return { flagged: true, categories: 'harmful content', detectedBy: 'gemini' };
             }
             console.log('[Moderation] Gemini approved comment');
             return { flagged: false, detectedBy: 'gemini' };
-        } catch (err) {
-            console.error('[Moderation] Gemini error, falling back to local filter:', err.message);
         }
+    } catch (err) {
+        console.error('[Moderation] Gemini REST error, using local filter:', err.message);
     }
 
     // 2. Fallback: local threat patterns + profanity
@@ -95,6 +101,8 @@ Answer (YES or NO only):`;
     }
     return { flagged: false, detectedBy: 'local' };
 };
+
+
 
 
 
