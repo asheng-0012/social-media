@@ -108,13 +108,21 @@ const moderateContent = async (text) => {
 
 
 
-// GET /api/post/moderation-test  ← DEBUG endpoint (remove in production)
+// GET /api/post/moderation-test  ← DEBUG endpoint
 export const testModeration = async (req, res) => {
     const text = req.query.text || 'I want to kill you';
     const keyLoaded = !!process.env.GEMINI_API_KEY;
+    let geminiAnswer = null;
+    let geminiError = null;
+    try {
+        geminiAnswer = await callGemini(text);
+    } catch (e) {
+        geminiError = e.message;
+    }
     const moderation = await moderateContent(text);
-    res.json({ text, keyLoaded, moderation });
+    res.json({ text, keyLoaded, geminiAnswer, geminiError, moderation });
 };
+
 
 // POST /api/post/:id/comments
 export const addComment = async (req, res) => {
