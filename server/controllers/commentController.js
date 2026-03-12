@@ -1,11 +1,11 @@
 import Comment from '../models/Comment.js';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // ── Simple built-in profanity filter (no package needed) ──────────────────
 const PROFANITY_LIST = [
     'fuck', 'shit', 'bitch', 'asshole', 'bastard', 'cunt', 'dick',
     'piss', 'cock', 'pussy', 'faggot', 'nigger', 'nigga', 'whore',
-    'slut', 'retard', 'motherfucker', 'fucker', 'ass', 'damn', 'crap',
+    'slut', 'retard', 'motherfucker', 'fucker', 'damn', 'crap',
 ];
 
 const normaliseLeet = (text) =>
@@ -16,21 +16,22 @@ const normaliseLeet = (text) =>
 
 const isLocallyFlagged = (text) => {
     const cleaned = normaliseLeet(text);
-    return PROFANITY_LIST.some(word => {
-        const re = new RegExp(`\\b${word}\\b`, 'i');
-        return re.test(cleaned);
-    });
+    return PROFANITY_LIST.some(word => new RegExp(`\\b${word}\\b`, 'i').test(cleaned));
 };
 
-// ── OpenAI Moderation (lazy-init so env vars are read at call time) ────────
-let _openai = null;
-const getOpenAI = () => {
-    if (_openai) return _openai;
-    const key = process.env.OPENAI_API_KEY;
-    if (key && !key.startsWith('your-openai')) {
-        _openai = new OpenAI({ apiKey: key });
+// ── Gemini AI Moderation (lazy-init) ─────────────────────────────────────
+let _gemini = null;
+const getGemini = () => {
+    if (_gemini) return _gemini;
+    const key = process.env.GEMINI_API_KEY;
+    if (key && !key.startsWith('your-gemini')) {
+        const genAI = new GoogleGenerativeAI(key);
+        _gemini = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        console.log('[Moderation] ✅ Gemini client initialised');
+    } else {
+        console.log('[Moderation] ⚠️  No valid GEMINI_API_KEY found');
     }
-    return _openai;
+    return _gemini;
 };
 
 // ── Main moderation function ───────────────────────────────────────────────
@@ -41,29 +42,33 @@ const moderateContent = async (text) => {
         return { flagged: true, categories: 'profanity / offensive language' };
     }
 
-    // 2. OpenAI Moderation API (hate, harassment, violence, etc.)
-    const openai = getOpenAI();
-    if (!openai) {
-        console.log('[Moderation] No OpenAI key — skipping API check');
-        return { flagged: false };
-    }
+    // 2. Gemini AI (hate speech, harassment, threats, etc.)
+    const model = getGemini();
+    if (!model) return { flagged: false };
+
     try {
-        const response = await openai.moderations.create({
-            model: 'omni-moderation-latest',
-            input: text,
-        });
-        const result = response.results[0];
-        console.log('[Moderation] OpenAI flagged:', result.flagged);
-        if (result.flagged) {
-            const cats = Object.entries(result.categories)
-                .filter(([, v]) => v)
-                .map(([k]) => k.replace(/\//g, ' / '))
-                .join(', ');
-            return { flagged: true, categories: cats };
+        console.log('[Moderation] Calling Gemini API...');
+        const prompt = `You are a content moderator. Analyse the following comment and respond with ONLY a JSON object in this exact format: {"flagged": true/false, "reason": "brief reason or empty string"}. Flag it if it contains hate speech, harassment, threats of violence, self-harm encouragement, or sexual content directed at a person. Be strict but fair.\n\nComment: "${text}"`;
+
+        const result = await model.generateContent(prompt);
+        const raw = result.response.text().trim();
+        console.log('[Moderation] Gemini raw response:', raw);
+
+        // Extract JSON from potential markdown code block
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            console.error('[Moderation] Could not parse Gemini response');
+            return { flagged: false };
+        }
+
+        const parsed = JSON.parse(jsonMatch[0]);
+        console.log('[Moderation] Gemini flagged:', parsed.flagged, '| reason:', parsed.reason);
+        if (parsed.flagged) {
+            return { flagged: true, categories: parsed.reason || 'harmful content' };
         }
         return { flagged: false };
     } catch (err) {
-        console.error('[Moderation] OpenAI error:', err.message);
+        console.error('[Moderation] Gemini error:', err.message);
         return { flagged: false };
     }
 };
