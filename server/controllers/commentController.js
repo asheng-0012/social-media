@@ -1,45 +1,69 @@
 import Comment from '../models/Comment.js';
 import OpenAI from 'openai';
-import { Filter } from 'bad-words';
 
-// Local profanity filter (always active, no API key needed)
-const localFilter = new Filter();
+// ── Simple built-in profanity filter (no package needed) ──────────────────
+const PROFANITY_LIST = [
+    'fuck', 'shit', 'bitch', 'asshole', 'bastard', 'cunt', 'dick',
+    'piss', 'cock', 'pussy', 'faggot', 'nigger', 'nigga', 'whore',
+    'slut', 'retard', 'motherfucker', 'fucker', 'ass', 'damn', 'crap',
+];
 
-// OpenAI client (only if key is set and not the placeholder)
-const openaiKey = process.env.OPENAI_API_KEY;
-const openai = openaiKey && !openaiKey.startsWith('your-openai')
-    ? new OpenAI({ apiKey: openaiKey })
-    : null;
+const normaliseLeet = (text) =>
+    text.toLowerCase()
+        .replace(/@/g, 'a').replace(/3/g, 'e').replace(/1/g, 'i')
+        .replace(/0/g, 'o').replace(/\$/g, 's').replace(/5/g, 's')
+        .replace(/\+/g, 't').replace(/[^a-z\s]/g, '');
 
-// Moderate content: local filter first, then OpenAI (if key set)
+const isLocallyFlagged = (text) => {
+    const cleaned = normaliseLeet(text);
+    return PROFANITY_LIST.some(word => {
+        const re = new RegExp(`\\b${word}\\b`, 'i');
+        return re.test(cleaned);
+    });
+};
+
+// ── OpenAI Moderation (lazy-init so env vars are read at call time) ────────
+let _openai = null;
+const getOpenAI = () => {
+    if (_openai) return _openai;
+    const key = process.env.OPENAI_API_KEY;
+    if (key && !key.startsWith('your-openai')) {
+        _openai = new OpenAI({ apiKey: key });
+    }
+    return _openai;
+};
+
+// ── Main moderation function ───────────────────────────────────────────────
 const moderateContent = async (text) => {
-    // 1. Local bad-words filter (free, instant, no API needed)
-    try {
-        if (localFilter.isProfane(text)) {
-            return { flagged: true, categories: 'profanity / offensive language' };
-        }
-    } catch (err) {
-        // ignore filter errors
+    // 1. Local word list (instant, zero API calls)
+    if (isLocallyFlagged(text)) {
+        console.log('[Moderation] Local filter flagged comment');
+        return { flagged: true, categories: 'profanity / offensive language' };
     }
 
-    // 2. OpenAI Moderation API (deeper detection: hate, harassment, etc.)
-    if (!openai) return { flagged: false };
+    // 2. OpenAI Moderation API (hate, harassment, violence, etc.)
+    const openai = getOpenAI();
+    if (!openai) {
+        console.log('[Moderation] No OpenAI key — skipping API check');
+        return { flagged: false };
+    }
     try {
         const response = await openai.moderations.create({
             model: 'omni-moderation-latest',
             input: text,
         });
         const result = response.results[0];
+        console.log('[Moderation] OpenAI flagged:', result.flagged);
         if (result.flagged) {
-            const flaggedCategories = Object.entries(result.categories)
+            const cats = Object.entries(result.categories)
                 .filter(([, v]) => v)
                 .map(([k]) => k.replace(/\//g, ' / '))
                 .join(', ');
-            return { flagged: true, categories: flaggedCategories };
+            return { flagged: true, categories: cats };
         }
         return { flagged: false };
     } catch (err) {
-        console.error('OpenAI moderation error:', err.message);
+        console.error('[Moderation] OpenAI error:', err.message);
         return { flagged: false };
     }
 };
