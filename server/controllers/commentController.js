@@ -48,14 +48,27 @@ const moderateContent = async (text) => {
 
     try {
         console.log('[Moderation] Calling Gemini API...');
-        const prompt = `You are a content moderator. Analyse the following comment and respond with ONLY a JSON object in this exact format: {"flagged": true/false, "reason": "brief reason or empty string"}. Flag it if it contains hate speech, harassment, threats of violence, self-harm encouragement, or sexual content directed at a person. Be strict but fair.\n\nComment: "${text}"`;
+        const prompt = `You are a strict content safety moderator for a social media platform. Your job is to flag harmful comments.
+
+Flag the comment as harmful (flagged: true) if it contains ANY of the following:
+- Direct threats of violence: e.g. "I want to kill you", "I will hurt you", "I'll murder you"
+- Encouragement of self-harm or suicide: e.g. "kill yourself", "you should die"
+- Hate speech targeting race, religion, gender, sexuality, disability
+- Sexual harassment or explicit sexual content directed at someone
+- Severe bullying or personal attacks meant to cause emotional harm
+
+Respond with ONLY valid JSON, no explanation, no markdown:
+{"flagged": true, "reason": "brief reason"}
+or
+{"flagged": false, "reason": ""}
+
+Comment to analyse: "${text}"`;
 
         const result = await model.generateContent(prompt);
         const raw = result.response.text().trim();
         console.log('[Moderation] Gemini raw response:', raw);
 
-        // Extract JSON from potential markdown code block
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        const jsonMatch = raw.match(/\{[\s\S]*?\}/);
         if (!jsonMatch) {
             console.error('[Moderation] Could not parse Gemini response');
             return { flagged: false };
@@ -71,6 +84,14 @@ const moderateContent = async (text) => {
         console.error('[Moderation] Gemini error:', err.message);
         return { flagged: false };
     }
+};
+
+// GET /api/post/moderation-test  ← DEBUG endpoint (remove in production)
+export const testModeration = async (req, res) => {
+    const text = req.query.text || 'I want to kill you';
+    const keyLoaded = !!process.env.GEMINI_API_KEY;
+    const moderation = await moderateContent(text);
+    res.json({ text, keyLoaded, moderation });
 };
 
 // POST /api/post/:id/comments
