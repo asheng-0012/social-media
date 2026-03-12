@@ -123,6 +123,19 @@ export const testModeration = async (req, res) => {
     res.json({ text, keyLoaded, geminiAnswer, geminiError, moderation });
 };
 
+// GET /api/post/list-models  ← DEBUG: see all available models for your API key
+export const listModels = async (req, res) => {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) return res.json({ error: 'No GEMINI_API_KEY set' });
+    try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+        const json = await r.json();
+        const modelNames = json.models?.map(m => m.name) || json;
+        res.json({ modelNames });
+    } catch (e) {
+        res.json({ error: e.message });
+    }
+};
 
 // POST /api/post/:id/comments
 export const addComment = async (req, res) => {
