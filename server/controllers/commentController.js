@@ -41,71 +41,57 @@ const isLocallyFlagged = (text) => {
     return PROFANITY_LIST.some(word => new RegExp(`\\b${word}\\b`, 'i').test(cleaned));
 };
 
-// ── OpenAI via Chat Completions (using cheaper gpt-4o-mini) ──────────────
-const callOpenAI = async (text) => {
-    const key = process.env.OPENAI_API_KEY;
-    if (!key || key.startsWith('your-openai')) return null;
+// ── Perspective API (Google Jigsaw - completely free) ────────────────────
+const callPerspectiveAPI = async (text) => {
+    const key = process.env.PERSPECTIVE_API_KEY;
+    if (!key || key.startsWith('your-perspective')) return null;
 
-    // Prevent immediate rate-limiting from rapid requests
-    await new Promise(r => setTimeout(r, 1000));
-
-    const prompt = `You are a content safety filter for a social media app. Answer with ONLY "YES" or "NO".
-
-Does this comment contain ANY of the following?
-- A threat of violence or death (e.g. "I want to kill you", "I'll hurt you", "I'll murder you")
-- Encouragement of self-harm or suicide (e.g. "kill yourself", "go die", "kys")
-- Hate speech based on race, religion, gender, or sexuality
-- Sexual harassment
-- Severe bullying or personal attacks
-
-Comment: "${text}"
-
-Answer (YES or NO only):`;
-
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch(`https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=${key}`, {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${key.trim()}`,
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0,
+            comment: { text: text },
+            languages: ['en'],
+            requestedAttributes: { TOXICITY: {} }
         }),
     });
 
     if (!res.ok) {
         const err = await res.text();
-        throw new Error(`OpenAI HTTP ${res.status}: ${err}`);
+        throw new Error(`Perspective API HTTP ${res.status}: ${err}`);
     }
 
     const json = await res.json();
-    const answer = json.choices?.[0]?.message?.content?.trim().toUpperCase() || '';
+    const score = json.attributeScores?.TOXICITY?.summaryScore?.value || 0;
     
-    console.log('[Moderation] OpenAI answer:', answer);
-    if (answer.startsWith('YES')) {
-        return { flagged: true, categories: 'harmful content' };
+    console.log('[Moderation] Perspective API Toxicity Score:', score);
+    
+    // A score of 0.70 or higher is generally considered toxic/harmful
+    if (score >= 0.70) {
+        return { flagged: true, categories: 'toxic content' };
     }
     return { flagged: false };
 };
 
 
+
 // ── Main moderation function ───────────────────────────────────────────────
 const moderateContent = async (text) => {
-    // 1. Try OpenAI Moderation API first (free, catches hate/violence/harassment)
+    // 1. Try Perspective API first (free, catches toxicity/hate)
     try {
-        const result = await callOpenAI(text);
+        const result = await callPerspectiveAPI(text);
         if (result !== null) {
             if (result.flagged) {
-                console.log('[Moderation] OpenAI flagged comment:', result.categories);
-                return { flagged: true, categories: result.categories, detectedBy: 'openai' };
+                console.log('[Moderation] Perspective API flagged comment:', result.categories);
+                return { flagged: true, categories: result.categories, detectedBy: 'perspective' };
             }
-            console.log('[Moderation] OpenAI approved comment');
-            return { flagged: false, detectedBy: 'openai' };
+            console.log('[Moderation] Perspective API approved comment');
+            return { flagged: false, detectedBy: 'perspective' };
         }
     } catch (err) {
-        console.error('[Moderation] OpenAI REST error, using local filter:', err.message);
+        console.error('[Moderation] Perspective API error, using local filter:', err.message);
     }
 
     // 2. Fallback: local threat patterns + profanity
@@ -130,11 +116,29 @@ const moderateContent = async (text) => {
 // GET /api/post/moderation-test  ← DEBUG endpoint
 export const testModeration = async (req, res) => {
     const text = req.query.text || 'I want to kill you';
-    const keyLoaded = !!process.env.OPENAI_API_KEY;
+    const keyLoaded = !!process.env.PERSPECTIVE_API_KEY;
     let aiAnswer = null;
     let aiError = null;
     try {
-        aiAnswer = await callOpenAI(text);
+        // Just calling it here to expose the raw output
+        const key = process.env.PERSPECTIVE_API_KEY;
+        if (key && !key.startsWith('your-perspective')) {
+            const result = await fetch(`https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=${key}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    comment: { text: text },
+                    languages: ['en'],
+                    requestedAttributes: { TOXICITY: {} }
+                }),
+            });
+            if (result.ok) {
+                const j = await result.json();
+                aiAnswer = j.attributeScores?.TOXICITY?.summaryScore?.value;
+            } else {
+                aiError = await result.text();
+            }
+        }
     } catch (e) {
         aiError = e.message;
     }
