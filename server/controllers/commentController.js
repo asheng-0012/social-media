@@ -41,63 +41,55 @@ const isLocallyFlagged = (text) => {
     return PROFANITY_LIST.some(word => new RegExp(`\\b${word}\\b`, 'i').test(cleaned));
 };
 
-// ── Gemini via direct REST fetch (no npm package — works everywhere) ───────
-const callGemini = async (text) => {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key || key.startsWith('your-gemini')) return null;
+// ── OpenAI Moderation via direct REST (free endpoint, no package needed) ──
+const callOpenAI = async (text) => {
+    const key = process.env.OPENAI_API_KEY;
+    if (!key || key.startsWith('your-openai')) return null;
 
-    const prompt = `You are a content safety filter for a social media app. Answer with ONLY "YES" or "NO".
-
-Does this comment contain ANY of the following?
-- A threat of violence or death (e.g. "I want to kill you", "I'll hurt you", "I'll murder you")
-- Encouragement of self-harm or suicide (e.g. "kill yourself", "go die", "kys")
-- Hate speech based on race, religion, gender, or sexuality
-- Sexual harassment
-- Severe bullying or personal attacks
-
-Comment: "${text}"
-
-Answer (YES or NO only):`;
-
-    const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
-            }),
-        }
-    );
+    const res = await fetch('https://api.openai.com/v1/moderations', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${key.trim()}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ input: text }),
+    });
 
     if (!res.ok) {
         const err = await res.text();
-        throw new Error(`Gemini HTTP ${res.status}: ${err}`);
+        throw new Error(`OpenAI HTTP ${res.status}: ${err}`);
     }
 
     const json = await res.json();
-    const answer = json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toUpperCase() || '';
-    console.log('[Moderation] Gemini REST answer:', answer);
-    return answer;
+    const result = json.results?.[0];
+    if (!result) throw new Error('No result from OpenAI moderation');
+
+    console.log('[Moderation] OpenAI flagged:', result.flagged);
+    if (result.flagged) {
+        const cats = Object.entries(result.categories)
+            .filter(([, v]) => v)
+            .map(([k]) => k)
+            .join(', ');
+        return { flagged: true, categories: cats };
+    }
+    return { flagged: false };
 };
-
-
 
 // ── Main moderation function ───────────────────────────────────────────────
 const moderateContent = async (text) => {
-    // 1. Try Gemini AI first via REST (primary detector)
+    // 1. Try OpenAI Moderation API first (free, catches hate/violence/harassment)
     try {
-        const answer = await callGemini(text);
-        if (answer !== null) {
-            if (answer.startsWith('YES')) {
-                console.log('[Moderation] Gemini flagged comment');
-                return { flagged: true, categories: 'harmful content', detectedBy: 'gemini' };
+        const result = await callOpenAI(text);
+        if (result !== null) {
+            if (result.flagged) {
+                console.log('[Moderation] OpenAI flagged comment:', result.categories);
+                return { flagged: true, categories: result.categories, detectedBy: 'openai' };
             }
-            console.log('[Moderation] Gemini approved comment');
-            return { flagged: false, detectedBy: 'gemini' };
+            console.log('[Moderation] OpenAI approved comment');
+            return { flagged: false, detectedBy: 'openai' };
         }
     } catch (err) {
-        console.error('[Moderation] Gemini REST error, using local filter:', err.message);
+        console.error('[Moderation] OpenAI REST error, using local filter:', err.message);
     }
 
     // 2. Fallback: local threat patterns + profanity
@@ -117,34 +109,24 @@ const moderateContent = async (text) => {
 
 
 
+
+
 // GET /api/post/moderation-test  ← DEBUG endpoint
 export const testModeration = async (req, res) => {
     const text = req.query.text || 'I want to kill you';
-    const keyLoaded = !!process.env.GEMINI_API_KEY;
-    let geminiAnswer = null;
-    let geminiError = null;
+    const keyLoaded = !!process.env.OPENAI_API_KEY;
+    let aiAnswer = null;
+    let aiError = null;
     try {
-        geminiAnswer = await callGemini(text);
+        aiAnswer = await callOpenAI(text);
     } catch (e) {
-        geminiError = e.message;
+        aiError = e.message;
     }
     const moderation = await moderateContent(text);
-    res.json({ text, keyLoaded, geminiAnswer, geminiError, moderation });
+    res.json({ text, keyLoaded, aiAnswer, aiError, moderation });
 };
 
-// GET /api/post/list-models  ← DEBUG: see all available models for your API key
-export const listModels = async (req, res) => {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) return res.json({ error: 'No GEMINI_API_KEY set' });
-    try {
-        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
-        const json = await r.json();
-        const modelNames = json.models?.map(m => m.name) || json;
-        res.json({ modelNames });
-    } catch (e) {
-        res.json({ error: e.message });
-    }
-};
+
 
 // POST /api/post/:id/comments
 export const addComment = async (req, res) => {
