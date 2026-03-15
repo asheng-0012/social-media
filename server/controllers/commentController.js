@@ -46,6 +46,10 @@ const callOpenAI = async (text) => {
     const key = process.env.OPENAI_API_KEY;
     if (!key || key.startsWith('your-openai')) return null;
 
+    // Prevent immediate rate-limiting from rapid requests (user suggestion)
+    await new Promise(r => setTimeout(r, 1000));
+
+
     const res = await fetch('https://api.openai.com/v1/moderations', {
         method: 'POST',
         headers: {
