@@ -41,22 +41,38 @@ const isLocallyFlagged = (text) => {
     return PROFANITY_LIST.some(word => new RegExp(`\\b${word}\\b`, 'i').test(cleaned));
 };
 
-// ── OpenAI Moderation via direct REST (free endpoint, no package needed) ──
+// ── OpenAI via Chat Completions (using cheaper gpt-4o-mini) ──────────────
 const callOpenAI = async (text) => {
     const key = process.env.OPENAI_API_KEY;
     if (!key || key.startsWith('your-openai')) return null;
 
-    // Prevent immediate rate-limiting from rapid requests (user suggestion)
+    // Prevent immediate rate-limiting from rapid requests
     await new Promise(r => setTimeout(r, 1000));
 
+    const prompt = `You are a content safety filter for a social media app. Answer with ONLY "YES" or "NO".
 
-    const res = await fetch('https://api.openai.com/v1/moderations', {
+Does this comment contain ANY of the following?
+- A threat of violence or death (e.g. "I want to kill you", "I'll hurt you", "I'll murder you")
+- Encouragement of self-harm or suicide (e.g. "kill yourself", "go die", "kys")
+- Hate speech based on race, religion, gender, or sexuality
+- Sexual harassment
+- Severe bullying or personal attacks
+
+Comment: "${text}"
+
+Answer (YES or NO only):`;
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${key.trim()}`,
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ input: text }),
+        body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0,
+        }),
     });
 
     if (!res.ok) {
@@ -65,19 +81,15 @@ const callOpenAI = async (text) => {
     }
 
     const json = await res.json();
-    const result = json.results?.[0];
-    if (!result) throw new Error('No result from OpenAI moderation');
-
-    console.log('[Moderation] OpenAI flagged:', result.flagged);
-    if (result.flagged) {
-        const cats = Object.entries(result.categories)
-            .filter(([, v]) => v)
-            .map(([k]) => k)
-            .join(', ');
-        return { flagged: true, categories: cats };
+    const answer = json.choices?.[0]?.message?.content?.trim().toUpperCase() || '';
+    
+    console.log('[Moderation] OpenAI answer:', answer);
+    if (answer.startsWith('YES')) {
+        return { flagged: true, categories: 'harmful content' };
     }
     return { flagged: false };
 };
+
 
 // ── Main moderation function ───────────────────────────────────────────────
 const moderateContent = async (text) => {
