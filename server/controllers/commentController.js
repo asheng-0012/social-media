@@ -8,6 +8,7 @@ const PROFANITY_LIST = [
 ];
 
 const THREAT_PATTERNS = [
+    // Direct threats
     /\bkill\s+you\b/i,
     /\bkill\s+your(self|selves)?\b/i,
     /\bi('ll|[ ]+will|[ ]+am going to|[ ]+gonna)\s+(kill|murder|hurt|stab|shoot|destroy|beat)\b/i,
@@ -18,7 +19,15 @@ const THREAT_PATTERNS = [
     /\bhang\s+your(self)?\b/i,
     /\bkill\s+(myself|himself|herself|themselves)\b/i,
     /\bwant\s+to\s+(kill|murder|hurt|harm)\b/i,
+    // Dehumanizing / hate speech
+    /don'?t\s+deserve\s+to\s+(live|exist|be\s+here|breathe)/i,
+    /\b(should|shouldn'?t)\s+(be\s+alive|exist)\b/i,
+    /\bwaste\s+of\s+(space|life|oxygen|air)\b/i,
+    /\b(subhuman|vermin|parasite|filth|scum)\b/i,
+    /\b(worthless|pathetic)\s+(piece\s+of\s+)?(shit|trash|garbage|human)\b/i,
+    /\bpeople?\s+like\s+you\s+(don'?t\s+deserve|should\s+(die|not\s+exist))/i,
 ];
+
 
 const normaliseLeet = (text) =>
     text.toLowerCase()
