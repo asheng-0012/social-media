@@ -46,6 +46,10 @@ const callGemini = async (text) => {
     const key = process.env.GEMINI_API_KEY;
     if (!key || key.startsWith('your-gemini')) return null;
 
+    // Add a 2-second delay to prevent hitting burst quota limits when deployed
+    await new Promise(r => setTimeout(r, 2000));
+
+
     const prompt = `You are a content safety filter for a social media app. Answer with ONLY "YES" or "NO".
 
 Does this comment contain ANY of the following?
