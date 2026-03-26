@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
     followers: [{type: String, ref: 'User' }],
     following: [{type: String, ref: 'User' }],
     connections: [{type: String, ref: 'User' }],
+    toxicCommentCount: { type: Number, default: 0 },
 },{timestamps: true, minimize: false})
 
 const User = mongoose.model('User', userSchema)

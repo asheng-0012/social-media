@@ -111,16 +111,16 @@ const AdminUsers = () => {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid #1e2535' }}>
-              {['User', 'Username', 'Email', 'Followers', 'Following', 'Joined', 'Actions'].map(h => (
+              {['User', 'Username', 'Email', 'Toxic Flags', 'Followers', 'Following', 'Joined', 'Actions'].map(h => (
                 <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#475569' }}>Loading…</td></tr>
+              <tr><td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#475569' }}>Loading…</td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#475569' }}>No users found</td></tr>
+              <tr><td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#475569' }}>No users found</td></tr>
             ) : users.map(u => (
               <tr key={u._id} style={{ borderBottom: '1px solid #1e2535' }}>
                 <td style={{ padding: '12px 16px' }}>
@@ -140,6 +140,7 @@ const AdminUsers = () => {
                 </td>
                 <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: '13px' }}>@{u.username}</td>
                 <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: '13px' }}>{u.email}</td>
+                <td style={{ padding: '12px 16px', color: '#f87171', fontSize: '13px', fontWeight: 600 }}>{u.toxicCommentCount || 0}</td>
                 <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: '13px' }}>{u.followers?.length ?? 0}</td>
                 <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: '13px' }}>{u.following?.length ?? 0}</td>
                 <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: '13px' }}>

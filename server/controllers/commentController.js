@@ -1,4 +1,5 @@
 import Comment from '../models/Comment.js';
+import User from '../models/User.js';
 
 // ── Simple built-in profanity + threat filter (no package needed) ─────────
 const PROFANITY_LIST = [
@@ -154,6 +155,9 @@ export const addComment = async (req, res) => {
         // AI Moderation
         const moderation = await moderateContent(content.trim());
         if (moderation.flagged) {
+            // Increment the user's toxic comment count
+            await User.findByIdAndUpdate(userId, { $inc: { toxicCommentCount: 1 } });
+            
             return res.json({
                 success: false,
                 flagged: true,
