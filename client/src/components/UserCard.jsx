@@ -68,17 +68,20 @@ const UserCard = ({ user }) => {
             key={user._id}
             className='p-5 pt-7 flex flex-col justify-between w-72 bg-white border border-border-light rounded-2xl hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200'
         >
-            <div className='text-center'>
+            <div 
+                className='text-center cursor-pointer group'
+                onClick={() => navigate(`/profile/${user._id}`)}
+            >
                 <img
                     src={user.profile_picture}
                     alt=''
-                    className='rounded-full w-16 h-16 ring-2 ring-border-light mx-auto object-cover'
+                    className='rounded-full w-16 h-16 ring-2 ring-border-light mx-auto object-cover group-hover:ring-google-blue/50 transition-all duration-200'
                 />
-                <p className='mt-4 font-medium text-text-primary'>
+                <p className='mt-4 font-medium text-text-primary group-hover:text-google-blue transition-colors'>
                     {user.full_name}
                 </p>
                 {user.username && (
-                    <p className='text-text-tertiary text-sm'>
+                    <p className='text-text-tertiary text-sm group-hover:text-google-blue/80 transition-colors'>
                         @{user.username}
                     </p>
                 )}
