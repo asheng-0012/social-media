@@ -59,6 +59,7 @@ Does this comment contain ANY of the following?
 - Hate speech based on race, religion, gender, or sexuality
 - Sexual harassment
 - Severe bullying or personal attacks
+- words like bitch and malaysian curse words too
 
 Comment: "${text}"
 
@@ -157,7 +158,7 @@ export const addComment = async (req, res) => {
         if (moderation.flagged) {
             // Increment the user's toxic comment count
             await User.findByIdAndUpdate(userId, { $inc: { toxicCommentCount: 1 } });
-            
+
             return res.json({
                 success: false,
                 flagged: true,
