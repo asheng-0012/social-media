@@ -44,6 +44,44 @@ const Profile = () => {
     }
   }
 
+  const handleFollow = async () => {
+    try {
+      const token = await getToken()
+      const { data } = await api.post(
+        `/api/user/follow`,
+        { id: user._id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (data.success) {
+        toast.success(data.message)
+        fetchUser(profileId)
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
+
+  const handleUnfollow = async () => {
+    try {
+      const token = await getToken()
+      const { data } = await api.post(
+        `/api/user/unfollow`,
+        { id: user._id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (data.success) {
+        toast.success(data.message)
+        fetchUser(profileId)
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
+
   const handleReport = async () => {
     if (!reportReason.trim()) {
       toast.error('Please provide a reason for reporting.')
@@ -101,6 +139,9 @@ const Profile = () => {
             profileId={profileId}
             setShowEdit={setShowEdit}
             setShowReport={setShowReport}
+            isFollowing={user?.followers?.includes(currentUser?._id)}
+            handleFollow={handleFollow}
+            handleUnfollow={handleUnfollow}
           />
         </div>
 

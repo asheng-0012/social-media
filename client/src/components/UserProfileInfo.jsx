@@ -2,7 +2,7 @@ import { Calendar, Flag, MapPin, PenBox, Verified } from 'lucide-react'
 import moment from 'moment'
 import React from 'react'
 
-const UserProfileInfo = ({ user, posts, profileId, setShowEdit, setShowReport }) => {
+const UserProfileInfo = ({ user, posts, profileId, setShowEdit, setShowReport, isFollowing, handleFollow, handleUnfollow }) => {
     return (
         <div className='relative py-5 px-6 md:px-8 bg-white'>
             <div className='flex flex-col md:flex-row items-start gap-6'>
@@ -41,13 +41,30 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit, setShowReport })
                                 </button>
                             )}
                             {profileId && (
-                                <button
-                                    onClick={() => setShowReport(true)}
-                                    className='flex items-center gap-2 border border-red-200 px-5 py-2 rounded-full font-medium text-sm text-red-500 hover:bg-red-50 transition-colors duration-200 cursor-pointer'
-                                >
-                                    <Flag className='w-4 h-4' />
-                                    Report
-                                </button>
+                                <>
+                                    {isFollowing ? (
+                                        <button
+                                            onClick={handleUnfollow}
+                                            className='flex items-center gap-2 border border-border px-5 py-2 rounded-full font-medium text-sm text-text-primary hover:bg-surface-hover transition-colors duration-200 cursor-pointer'
+                                        >
+                                            Unfollow
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={handleFollow}
+                                            className='flex items-center gap-2 border border-transparent bg-google-blue px-5 py-2 rounded-full font-medium text-sm text-white hover:bg-blue-600 transition-colors duration-200 cursor-pointer'
+                                        >
+                                            Follow
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => setShowReport(true)}
+                                        className='flex items-center gap-2 border border-red-200 px-5 py-2 rounded-full font-medium text-sm text-red-500 hover:bg-red-50 transition-colors duration-200 cursor-pointer'
+                                    >
+                                        <Flag className='w-4 h-4' />
+                                        Report
+                                    </button>
+                                </>
                             )}
                         </div>
                     </div>
